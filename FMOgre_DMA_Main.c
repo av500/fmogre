@@ -510,15 +510,13 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
 #ifdef MULDIV_DECIMATION
         //   Next step:  decimation / resolution reduction - uses integer divide
         //   then multiply by same amount to reduce the resolution.
-        dac1lb = (((dac1la - 32768) / ((curaltphasemod)>> 8))
-                * ((curaltphasemod)>>8))
-                + 32768;
+        int shift = curaltphasemod >> 8;
+        dac1lb = (((dac1la - 32768) / shift) * shift ) + 32768;
 #endif
 //#define SHIFT_DECIMATION
 #ifdef SHIFT_DECIMATION
-        dac1lb = (((dac1la - 32768) >> (curaltphasemod >> 8)) 
-                << (curaltphasemod >> 8)) + 32768;
-                
+        int shift = curaltphasemod >> 8;
+        dac1lb = (((dac1la - 32768) >> shift) << shift) + 32768;
 #endif        
 //#define TABLE_MASK_DECIMATION
 #ifdef TABLE_MASK_DECIMATION
