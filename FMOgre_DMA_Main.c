@@ -262,16 +262,16 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	unsigned int phase = 0xfff & (final_phase_fm_fb_pm + 2048);
 	
 	// dist is the distance between read and write point, range is 0-2048
-	unsigned int dist1 = (abs(final_phase_fm_fb_pm - sample_index)); dist1 = (dist1) > 256 ? 16 : (dist1 >> 4);
+	unsigned int dist1 = (abs(final_phase_fm_fb_pm - sample_index)); 
+	             dist1 = (dist1) > 256 ? 16 : (dist1 >> 4);
 	unsigned int dist2 = 16 - dist1; 
 
-	long dac1la, dac1lb = 0;
-
-	dac1la = SAMPLESWITCH ? sample_buf[final_phase_fm_fb_pm] * dist1 + sample_buf[phase] * dist2
-			      : sine_table[0X00000fff & (final_phase_fm_fb_pm)]; 
+	long dac1la = SAMPLESWITCH ? sample_buf[final_phase_fm_fb_pm] * dist1 + sample_buf[phase] * dist2
+	                           : sine_table[0X00000fff & (final_phase_fm_fb_pm)]; 
+	long dac1lb = 0;
 	 
 	if (RESOLUTIONSWITCH) {
-		// DANGER DANGER DANGER!!!  Use muldiv decimation only with DAC dividers 
+		// DANGER DANGER DANGER!!! Use muldiv decimation only with DAC dividers 
 		// of 6 or greater!   Otherwise, the interrupt cannot keep up with the
 		// demand of the DAC oversampling hardware and you'll underrun which makes
 		// lots of negative-going pulses.  Not A Good Thing!
