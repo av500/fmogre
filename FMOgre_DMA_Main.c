@@ -99,10 +99,7 @@
 
 
 #include <stdio.h>
-/// #include <pic16f1825.h>
-///#include <dspic33fj64gp802.h>
 #include <p33FJ128GP804.h>
-//#include "common.h"
 #include "dsp.h"
 #include <stdint.h>
 
@@ -176,7 +173,6 @@ volatile long curresolution;
 volatile long curfbgain;
 
 // AD converter stuff
-int which_adc;
 unsigned long sinevalue;
 volatile unsigned long final_phase_fm_fb_pm;
 volatile unsigned long final_phase_fmpm;
@@ -193,10 +189,7 @@ volatile char oldhardsync;
 static unsigned int dma_eng_addr;
 
 //  to make stuffing the ADC values easier, we use some DEFINEs:
-// volatile unsigned cvdata[12];
 volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)));
-volatile unsigned adc_data;
-volatile unsigned adc_chan;
 
 //#define REVISION1
 
@@ -277,13 +270,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 
 	// CVPITCHINCR could also be calculated in the mainline.  We used to do it here
 	// but it ate too much CPU and slowed down the ADC interrupt.
-	//
-	// MIDI and Frequency to curfreqincr conversion NOTES:
-	// MIDI note 0 = 8.1757 Hz.  MIDI note 127 = 12543 Hz
-	// use 23616894 for 83333 sample rate and 440 Hz out = MIDI note 69 +/- 0.1%
-
-	// UNCOMMENT NEXT LINE FOR A-440 frequency output
-	//curpitchincr = 23599607 ;
 
 	curbasephase = curbasephase + curpitchincr;
 
@@ -313,19 +299,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 //#define INTERRUPT_CURPHASEMOD
 #ifdef INTERRUPT_CURPHASEMOD
 	curphasemod = (((cvpm - 2048) * cvpmknob) >> 12);
-#endif
-
-// this next version works but it's not very feature-rich...
-//#define WORKING_VERSION
-#ifdef WORKING_VERSION
-	long final_phase_fm = 0x0000FFF & ((	// native base phase
-				(curbasephase >> 20)
-				+	//  plus operator feedback
-				((sinevalue - 32767) * ((cvfbknob * cvfb) >> 12) >> 12)
-				+ (curphasemod)
-				));
-	// all done - stuff the DAC output registers.
-	DAC1RDAT = sine_table[0x00000FFF & ((curbasephase >> 20) + 2048)]; DAC1LDAT = sine_table[0X00000fff & (final_phase_fm + 2048)]; TESTPOINT2 = 0; return;
 #endif
 
 	// slightly experimental version.   FM + Feedback on one, FM+PM+FB on other
@@ -401,13 +374,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #ifdef TABLE_MASK_DECIMATION
 		// work in progress.   Not really satisfactory yet.
 		dac1lb = dac1la & highorderbittable[((4095 - cvpm) * cvpmknob) >> 14];
-#endif
-
-//#define CLIP_DECIMATION
-#ifdef CLIP_DECIMATION
-		// cheaper, faster decimation (actually, clipping)!   No divide!
-		// dac1lb = dac1la & graytable [curresolution];
-		// dac1lb = dac1la > 65535 - (curresolution << 3) ? 65535 : ( dac1la <  (curresolution << 3) ? 0 : dac1la );
 #endif
 	}
 
@@ -638,9 +604,7 @@ int main(int argc, char **argv)
 	// These are things like the RB5 "hearbeat" LED, RB6 neg Freq, RB7 neg phase,
 	// RB8 and RB9 hard sync in and hard sync out, and the internals:
 	// curpitchval, curpitchincr, and curphasemod.
-	//
 	while (1) {	
-		// Loop Endlessly - Execution is interrupt driven
 		
 //#define HEARTBEAT_CPU
 #ifdef HEARTBEAT_CPU
