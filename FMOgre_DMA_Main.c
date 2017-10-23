@@ -232,8 +232,8 @@ volatile unsigned adc_chan;
 #define TESTPOINT3 PORTCbits.RC8
 
 // Unless we use __attribute__ ((far)) we would need to use large memory model for this to work.
-__attribute__ ((far)) unsigned int pbuf[PBUF_LEN];
-volatile unsigned pbindex = 0;
+__attribute__ ((far)) static unsigned int sample_buf[SAMPLE_BUF_LEN];
+static volatile unsigned sample_index = 0;
 
 // Pins RB5, RB6, and RB7 are the LED port.
 // Pin  RB8 is SYNC OUT, pin RB9 is SYNC IN.
@@ -268,12 +268,12 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	// Store the AD channel 1 (wavesampling) into the playback buffer
 	// Note we store this in 12 bit (0-4095) mode; when we do our
 	// windowing multiply we get it out to 16 bits
-	pbuf[pbindex] = (((unsigned long) 4095) - cvfb);
+	sample_buf[sample_index] = (((unsigned long) 4095) - cvfb);
 	if (PORTAbits.RA9 == 0) { // is SYNC / FREEZE on or off? // TIMO edit  RB9->RA9
-		pbindex++;
+		sample_index++;
 	};		
-	if (pbindex >= PBUF_LEN)
-		pbindex = 0;
+	if (sample_index >= SAMPLE_BUF_LEN)
+		sample_index = 0;
 
 	// CVPITCHINCR could also be calculated in the mainline.  We used to do it here
 	// but it ate too much CPU and slowed down the ADC interrupt.
@@ -305,8 +305,8 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	// feedback, and used to generate the final (actual) FM phase.
 	// Because it's synchronous with curbasephase, we *do* calculate it at
 	// interrupt time (fortunately, it's fast)
-	sinevalue = SAMPLESWITCH ? pbuf[0x00000FFF & (curbasephase >> 20)]
-	            : sine_table[0x00000FFF & (curbasephase >> 20)];
+	unsigned long sinevalue = SAMPLESWITCH ? sample_buf[0x00000FFF & (curbasephase >> 20)]
+	                                       : sine_table[0x00000FFF & (curbasephase >> 20)];
 	
 	// used to calculate curphasemod here, but now do it in mainline (again, to
 	// minimize time spent in the interrupt and thus not slow down the ADC stream)
@@ -419,7 +419,7 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	// Note that Hard Sync IN changes if we're in granular/sampling mode to
 	// become _FREEZE_INPUT_SAMPLES_
 	if (SAMPLESWITCH) {
-		PORTBbits.RB8 = pbindex < 0x000000FF;
+		PORTBbits.RB8 = sample_index < 0x000000FF;
 	} else {
 		PORTBbits.RB8 = final_phase_fm_feedback > 0x00000800;
 	}
