@@ -162,26 +162,18 @@ _FOSCSEL(FNOSC_PRIPLL & IESO_ON)
 #define SAMPLESWITCH PORTAbits.RA4
 
 // FM state variables
-volatile unsigned long curbasephase;
-volatile long curpitchval;
-volatile long curpitchincr;
-volatile long curfreqmod;
-volatile long cvpm_dv, old_cvpm, older_cvpm, cvpm_predicted, cvpm_errpredmult;
-volatile long curphasemod;
-volatile long curaltphasemod;
-volatile long curresolution;
-volatile long curfbgain;
+static volatile unsigned long curbasephase;
+static volatile long curpitchval;
+static volatile long curpitchincr;
+static volatile long curfreqmod;
+static volatile long cvpm_dv, old_cvpm, older_cvpm, cvpm_predicted; 
+static volatile long cvpm_errpredmult = 0;
+static volatile long curphasemod;
+static volatile long curaltphasemod;
+static volatile long curfbgain;
 
 // AD converter stuff
-unsigned long sinevalue;
-volatile unsigned long final_phase_fm_fb_pm;
-volatile unsigned long final_phase_fmpm;
-volatile unsigned long final_phase_fm_feedback;
-volatile long dac1la, dac1lb;
-volatile long phase_shift;
-volatile long phaselowpass;
-volatile char oldhardsync;
-
+static volatile char oldhardsync;
 // DMA buffer (note that the pointer passed to the DMA engine is
 // NOT the same as the CPU address of the DMA buffer; the two have
 // overlapping but not zero-originned address spaces.)
@@ -189,7 +181,7 @@ volatile char oldhardsync;
 static unsigned int dma_eng_addr;
 
 //  to make stuffing the ADC values easier, we use some DEFINEs:
-volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)));
+static volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)));
 
 //#define REVISION1
 
@@ -217,7 +209,7 @@ volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)));
 
 #define ADC_FIRST (0)
 #define ADC_LAST  (7)
-#define PBUF_LEN   4096
+#define SAMPLE_BUF_LEN   4096
 
 // Test point defines
 #define TESTPOINT1 PORTCbits.RC6
