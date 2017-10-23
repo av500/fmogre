@@ -438,36 +438,8 @@ int noop()
 	return (1);
 }
 
-/*
- *
- */
-int main(int argc, char **argv) 
+static void setup_pins(void)
 {
-	// Configure Oscillator to operate the device at ~40MHz
-	// Fosc = Fin  *   M      / (N1 * N2), Fcy = Fosc / 2
-	// Fosc = 4.0M * (80 + 2) / ( 2 * 2 ) = 82.00Mhz
-
-	// Current crystal is 4 MHz so the below actually clocks at 82MHz/41 MIPS
-	CLKDIVbits.PLLPRE  = 0;	 // N2 = 2
-	PLLFBD             = 80; // M  = 80 + 2 = 82, set this to 78 for an accurate 80 MIPS
-	CLKDIVbits.PLLPOST = 0;	 // N1 = 2
-				 // 4MHz xtal + 0/80/0 yields ~41 MHz inst speed (measured)
-
-	// Disable Watch Dog Timer
-	RCONbits.SWDTEN = 0;
-	
-	// Wait for PLL to lock
-	while (OSCCONbits.LOCK != 1) {
-	};
-	
-	//   Set up aux oscillator channel
-	ACLKCONbits.SELACLK = 0;	// Aux oscillator from Main Fosc;
-	ACLKCONbits.APSTSCLR = 6;	// was 6: Divide by 2 - gets 20 MHz to the DAC;
-					// use 6 to get 83333 hz DAC output rate (measured @ 40 MHz inst)
-	ACLKCONbits.ASRCSEL = 0;	// use primary clock as source (but doesn't matter)
-	
-	long int iz = 0;
-	
 	// set up which pins are digital in and out
 	TRISA = 0x0;		// Inputs on RA0-1 (ADC 0 and 1)
 	TRISAbits.TRISA0 = 1; 
@@ -503,7 +475,10 @@ int main(int argc, char **argv)
 	TRISCbits.TRISC6 = 0;	// Test Point 1
 	TRISCbits.TRISC7 = 0;	// Test Point 2
 	TRISCbits.TRISC8 = 0;	// Test Point 3   
-	
+}
+
+static void setup_dac(void)
+{
 	// set up the DACs
 	DAC1CONbits.DACEN = 1;	// enable the audio dac
 	DAC1CONbits.AMPON = 1;	// enable the output amplifier
@@ -541,15 +516,21 @@ int main(int argc, char **argv)
 	DMA0PAD = (int) &ADC1BUF0;	// source the data from the ADC
 	DMA0CNT = 0;		// How many transfers (DMA0CNT=0 --> 1 transfer)
 	DMA0REQbits.IRQSEL = 13;// ADC1DAT0 is #13 (see manual table 8.1)
-	dma_eng_addr = __builtin_dmaoffset(&cvdata);	// offset for DMA engine
-	DMA0STA = dma_eng_addr;	// DMA engine's buffer address - not CPU's
+
+	// DMA buffer (note that the pointer passed to the DMA engine is
+	// NOT the same as the CPU address of the DMA buffer; the two have
+	// overlapping but not zero-originned address spaces.)
+	DMA0STA = __builtin_dmaoffset(&cvdata);	// DMA engine's buffer address - not CPU's
 	DMA0STB = 0;		// No DMA secondary register
 	
 	IFS0bits.DMA0IF = 0;	// Clear DMA0's interrupt flag
 	IEC0bits.DMA0IE = 0;	// Clear the DMA interrupt enable
 	
 	DMA0CONbits.CHEN = 1;	// Enable the DMA channel.   Off you go!
-	
+}
+
+static void setup_adc(void)
+{
 	// Set up the ADCs
 	AD1CON1bits.ADON = 0;	// AD converter off while configuring
 	AD1CON1bits.AD12B = 1;	// 1 = 12-bit mode
@@ -613,16 +594,49 @@ int main(int argc, char **argv)
 	IEC0bits.T3IE = 0;	// Disable T3 interrupt
 	T3CONbits.TON = 1;	// start the timer
 	
-	// Zeroize the ADC inputs in preparation for those that aren't updated
+	// zero the ADC inputs in preparation for those that aren't updated
 	int i; 
 	for (i = 0; i < 12; i++){
 		cvdata[i] = 0;
 	}
+}
 
-	// Zero the buffer index for starters.
-	pbindex = 0; cvpm_errpredmult = 0;
+static void setup_clocks(void)
+{
+	// Configure Oscillator to operate the device at ~40MHz
+	// Fosc = Fin  *   M      / (N1 * N2), Fcy = Fosc / 2
+	// Fosc = 4.0M * (80 + 2) / ( 2 * 2 ) = 82.00Mhz
 
-	// DAC INTERRUPT SET UP STUFF
+	// Current crystal is 4 MHz so the below actually clocks at 82MHz/41 MIPS
+	CLKDIVbits.PLLPRE  = 0;	 // N2 = 2
+	PLLFBD             = 80; // M  = 80 + 2 = 82, set this to 78 for an accurate 80 MIPS
+	CLKDIVbits.PLLPOST = 0;	 // N1 = 2
+				 // 4MHz xtal + 0/80/0 yields ~41 MHz inst speed (measured)
+
+	// Disable Watch Dog Timer
+	RCONbits.SWDTEN = 0;
+	
+	// Wait for PLL to lock
+	while (OSCCONbits.LOCK != 1) {
+	};
+	
+	//   Set up aux oscillator channel
+	ACLKCONbits.SELACLK  = 0;	// aux oscillator from main F_osc;
+	ACLKCONbits.APSTSCLR = 6;	// divide by 2
+	ACLKCONbits.ASRCSEL  = 0;	// use primary clock as source (but doesn't matter)
+}
+
+int main(int argc, char **argv) 
+{
+	setup_clocks();
+	
+	setup_pins();
+	
+	setup_dac();
+	
+	setup_adc();
+
+	// enable the DAC interrupt
 	IEC4bits.DAC1RIE  = 1;	// enable the right channel DAC FIFO interrupt
 	IPC19bits.DAC1RIP = 5;	// set the FIFO interrupt priority (7 is max)
 	
