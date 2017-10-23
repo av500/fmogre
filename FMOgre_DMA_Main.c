@@ -330,6 +330,13 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
     IFS4bits.DAC1RIF = 0;             //    clear the interrupt
     TESTPOINT2 = 1;                   //   show we're in DAC1RInterrupt
 
+//#define TEST_ADC_DAC_PASSTHROUGH
+#ifdef TEST_ADC_DAC_PASSTHROUGH
+    DAC1LDAT = cvfm << 4;
+    DAC1RDAT = cvpm << 4; 
+    TESTPOINT2 = 0; 
+    return;
+#endif
     //       Store the AD channel 1 (wavesampling) into the playback buffer
     {
         //   Note we store this in 12 bit (0-4095) mode; when we do our
