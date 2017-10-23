@@ -428,16 +428,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	return;
 }
 
-void delay(int cycles)
-{
-	int i; for (i = 0; i < cycles; i++);
-}
-
-int noop() 
-{
-	return (1);
-}
-
 static void setup_pins(void)
 {
 	// set up which pins are digital in and out
