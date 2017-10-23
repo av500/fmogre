@@ -8,11 +8,11 @@
  * yet more mangling September 5 2015
  * Yet more mangling November 2015
  * 
- *    This file is Copyright 2013-2015 William S. Yerazunis,
- *   It is licensed CC-BY-SA-NC
+ *  This file is Copyright 2013-2015 William S. Yerazunis,
+ *  It is licensed CC-BY-SA-NC
  *
- *   (creative commons, attribute source, share alike, no commercial
- *    use without other license)
+ *  (creative commons, attribute source, share alike, no commercial
+ *   use without other license)
  */
 
 /* edited by Timo Rozendal, all these edits are mentioned with TIMO EDIT in the comments
@@ -157,9 +157,9 @@ _FOSCSEL(FNOSC_PRIPLL & IESO_ON)
 
 //     Now for our actual application specific stuff
 
-#define LFOSWITCH PORTAbits.RA8
+#define LFOSWITCH        PORTAbits.RA8
 #define RESOLUTIONSWITCH PORTBbits.RB4
-#define SAMPLESWITCH PORTAbits.RA4
+#define SAMPLESWITCH     PORTAbits.RA4
 
 // FM state variables
 static volatile unsigned long curbasephase;
@@ -613,7 +613,8 @@ int main(int argc, char **argv)
 
 //#define HEARTBEAT_NOTINTERRUPT
 #ifdef HEARTBEAT_NOTINTERRUPT
-		PORTCbits.RC7 = 1; PORTCbits.RC7 = 0;
+		PORTCbits.RC7 = 1; 
+		PORTCbits.RC7 = 0;
 #endif
 
 #define BASELINE_CVPITCHINCR
