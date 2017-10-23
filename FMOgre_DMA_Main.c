@@ -467,10 +467,7 @@ static void setup_adc(void)
 	T3CONbits.TON   = 1;	// start the timer
 	
 	// zero the ADC inputs in preparation for those that aren't updated
-	int i; 
-	for (i = 0; i < 12; i++){
-		cvdata[i] = 0;
-	}
+	memset(cvdata, 0, sizeof(cvdata));
 }
 
 static void setup_clocks(void)
