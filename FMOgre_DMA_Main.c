@@ -121,28 +121,9 @@
 #pragma config GWRP = OFF	// General Code Segment Write Protect (User program memory is not write-protected)
 #pragma config GSS = OFF	// General Segment Code Protection (User program memory is not code-protected)
 
-// FOSCSEL
-//   Uncomment next for FRC PLL
-//#pragma config FNOSC = FRCPLL           // Oscillator Mode (Internal Fast RC (FRC) w/ PLL)
-//   Uncomment next for crystal
-//#pragma config FNOSC = PRI              // Oscillator Mode (Primary Oscillator (XT, HS, EC))
-//#pragma config IESO = ON                // Internal External Switch Over Mode (Start-up device with FRC, then automatically switch to user-selected oscillator source when ready)
-
-// FOSC
-
-//  Uncomment next four for RC high speed clock
-//#pragma config POSCMD = HS              // Primary Oscillator Source (HS Oscillator Mode)
-//#pragma config OSCIOFNC = ON            // OSC2 Pin Function (OSC2 pin has digital I/O function)
-//#pragma config IOL1WAY = OFF            // Peripheral Pin Select Configuration (Allow Multiple Re-configurations)
-//#pragma config FCKSM = CSDCMD           // Clock Switching and Monitor (Both Clock Switching and Fail-Safe Clock Monitor are disabled)
-
-//   Uncomment next four for crystal oscillator mode.
-//#pragma config POSCMD = XT              // Primary Oscillator Source (XT Oscillator Mode)
-//#pragma config OSCIOFNC = OFF           // OSC2 Pin Function (OSC2 pin has clock out function)
-//#pragma config IOL1WAY = OFF            // Peripheral Pin Select Configuration (Allow Multiple Re-configurations)
-//#pragma config FCKSM = CSECMD           // Clock Switching and Monitor (Clock switching is enabled, Fail-Safe Clock Monitor is disabled)
 _FOSCSEL(FNOSC_PRIPLL & IESO_ON)
-	_FOSC(POSCMD_XT & OSCIOFNC_OFF & IOL1WAY_OFF & FCKSM_CSECME)
+_FOSC   (POSCMD_XT & OSCIOFNC_OFF & IOL1WAY_OFF & FCKSM_CSECME)
+
 // FWDT
 #pragma config WDTPOST = PS32768	// Watchdog Timer Postscaler (1:32,768)
 #pragma config WDTPRE = PR128	// WDT Prescaler (1:128)
@@ -167,12 +148,9 @@ static volatile long curpitchval;
 static volatile long curpitchincr;
 static volatile long curfreqmod;
 static volatile long cvpm_dv, old_cvpm, older_cvpm, cvpm_predicted; 
-static volatile long cvpm_errpredmult = 0;
 static volatile long curphasemod;
 static volatile long curaltphasemod;
 static volatile long curfbgain;
-
-// AD converter stuff
 static volatile char oldhardsync;
 
 //  to make stuffing the ADC values easier, we use some DEFINEs:
@@ -202,8 +180,6 @@ static volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)
 
 #endif
 
-#define ADC_FIRST (0)
-#define ADC_LAST  (7)
 #define SAMPLE_BUF_LEN   4096
 
 // Test point defines
@@ -271,7 +247,9 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 
 //#define RAW_PLUS_LINEAR_FM_CHECK
 #ifdef RAW_PLUS_LINEAR_FM_CHECK
-	DAC1RDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; DAC1LDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; return;
+	DAC1RDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; 
+	DAC1LDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; 
+	return;
 #endif
 	// sinevalue is the output of the basephase->sine conversion BUT it's
 	// not used directly.  Instead, it's the intermediate for the operator
@@ -297,18 +275,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #define INTERRUPT_CURPHASEMOD
 #ifdef INTERRUPT_CURPHASEMOD
 #define DEADBAND 0
-
-#ifdef PRED_MULT
-	if (cvpm != old_cvpm) {
-		if (cvpm_predicted < cvpm + DEADBAND)
-			cvpm_errpredmult = cvpm_errpredmult + ((cvpm - old_cvpm) > 0 ? +1 : -1); 
-		if (cvpm_predicted > cvpm - DEADBAND)
-			cvpm_errpredmult = cvpm_errpredmult + ((cvpm - old_cvpm) > 0 ? -1 : +1);
-		cvpm_dv = ((((long) cvpm) - ((long) old_cvpm)) * cvpm_errpredmult) / 256; older_cvpm = old_cvpm; old_cvpm = (long) cvpm; cvpm_predicted = (long) cvpm;
-	} else {
-		cvpm_predicted = cvpm_predicted + cvpm_dv;
-	}
-#endif
 	// new method- keep current, old, and older.   
 	if (cvpm != old_cvpm) {
 		older_cvpm = old_cvpm; cvpm_predicted = older_cvpm; old_cvpm = cvpm;
