@@ -117,25 +117,23 @@ static volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)
 //#define REVISION1
 
 #ifdef REVISION1
-#define cvpitch                  (cvdata[7])	// TIMO EDIT: was 0
-#define cvfb                     (cvdata[1])
-#define cvfm                     (cvdata[2])
-#define cvpm                     (cvdata[3])
-#define cvpmknob    ((long)4095 - cvdata[4])
-#define cvfmknob    ((long)4095 - cvdata[5])
-#define cvfbknob    ((long)4095 - cvdata[6])
-#define cvpitchknob ((long)4095 - cvdata[0])	// TIMO EDIT: was 7
+  #define cvpitch                  (cvdata[7])	// TIMO EDIT: was 0
+  #define cvfb                     (cvdata[1])
+  #define cvfm                     (cvdata[2])
+  #define cvpm                     (cvdata[3])
+  #define cvpmknob    ((long)4095 - cvdata[4])
+  #define cvfmknob    ((long)4095 - cvdata[5])
+  #define cvfbknob    ((long)4095 - cvdata[6])
+  #define cvpitchknob ((long)4095 - cvdata[0])	// TIMO EDIT: was 7
 #else
-
-#define cvpitch     (cvdata[7])			// TIMO EDIT: was 0
-#define cvfb        (cvdata[1])
-#define cvfm        (cvdata[2])
-#define cvpm        (cvdata[3])
-#define cvpmknob    (cvdata[4])
-#define cvfmknob    (cvdata[5])
-#define cvfbknob    (cvdata[6])
-#define cvpitchknob (cvdata[8])			// TIMO EDIT: was 0 and before that 7
-
+  #define cvpitch     (cvdata[7])		// TIMO EDIT: was 0
+  #define cvfb        (cvdata[1])
+  #define cvfm        (cvdata[2])
+  #define cvpm        (cvdata[3])
+  #define cvpmknob    (cvdata[4])
+  #define cvfmknob    (cvdata[5])
+  #define cvfbknob    (cvdata[6])
+  #define cvpitchknob (cvdata[8])		// TIMO EDIT: was 0 and before that 7
 #endif
 
 #define SAMPLE_BUF_LEN   4096
@@ -156,13 +154,13 @@ static volatile unsigned sample_index = 0;
 // The wavetable for sine waves are in wavetable.h
 #include "wavetable.h"
 
-//    oscillator phase: 32 bit unsigned int, used as follows:
-//      2^31 to 2^19 - used for output (12 bits into the LUT, same as the DX7 had).
-//      2^18 to 2^ 0 - fractional phase, not used but carried over which maintains phase coherency
+// oscillator phase: 32 bit unsigned int, used as follows:
+//   2^31 to 2^19 - used for output (12 bits into the LUT, same as the DX7 had).
+//   2^18 to 2^ 0 - fractional phase, not used but carried over which maintains phase coherency
 //
-//    By using this format, it is unnecessary to rectify phase wrapping in
-//    either directions - overflow and underflow can be IGNORED. The latter also
-//    makes this do thru-zero FM work correctly.
+// By using this format, it is unnecessary to rectify phase wrapping in
+// either directions - overflow and underflow can be IGNORED. The latter also
+// makes this do thru-zero FM work correctly.
 
 void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1LInterrupt(void)
 {
@@ -323,8 +321,10 @@ static void setup_pins(void)
 	TRISAbits.TRISA4 = 1;	// RA4 is switch 3(sine versus sample)
 	TRISAbits.TRISA8 = 1;	// RA8 is switch 1 (VCO versus LFO)
 	TRISAbits.TRISA9 = 1;	// Pin RA9 is SYNC IN. TIMO EDIT
+	
 	TRISC = 0x0;		// Inputs on RC0-1 (ADC 6 and 7)
-	TRISCbits.TRISC0 = 1; TRISCbits.TRISC1 = 1;
+	TRISCbits.TRISC0 = 1; 
+	TRISCbits.TRISC1 = 1;
 #ifndef REVISION1
 	TRISCbits.TRISC2 = 1;	// TIMO EDIT (to use an8 in stead of an0)
 #endif
@@ -347,6 +347,7 @@ static void setup_pins(void)
 	TRISBbits.TRISB13 = 1; 
 	TRISBbits.TRISB14 = 1; 
 	TRISBbits.TRISB15 = 1;
+	
 	// use port RC6 to see stuff like ADC and DAC interrupts, so output...
 	TRISCbits.TRISC6 = 0;	// Test Point 1
 	TRISCbits.TRISC7 = 0;	// Test Point 2
@@ -438,14 +439,14 @@ static void setup_adc(void)
 	AD1CHS0bits.CH0NA = 0;	// channel A negative input is Vref-
 	AD1CHS0bits.CH0SA = 0;	// channel A positive input is input AD0
 #ifdef REVISION1
-	AD1CSSL = 0x00FF;	// AN0-7 enabled for scan
+	AD1CSSL  = 0x00FF;	// AN0-7 enabled for scan
 	AD1PCFGL = 0xFF00;	// enable ADC on low 8 AD pins.
 #else
-	AD1CSSL = 0x01FE;	// AN0-7 enabled for scan	// TIMO EDIT was 00FF (to use an8 in stead of an0)
+	AD1CSSL  = 0x01FE;	// AN0-7 enabled for scan	// TIMO EDIT was 00FF (to use an8 in stead of an0)
 	AD1PCFGL = 0xFE00;	// enable ADC on low 8 AD pins.	// TIMO EDIT was FF00 (to use an8 in stead of an0)
 #endif
-	IFS0bits.AD1IF = 0;	// Clear the AD interrupt flag
-	IEC0bits.AD1IE = 0;	// Do not enable AD interrupt 
+	IFS0bits.AD1IF   = 0;	// Clear the AD interrupt flag
+	IEC0bits.AD1IE   = 0;	// Do not enable AD interrupt 
 	AD1CON1bits.ADON = 1;	// turn on the ADC
 	
 	// Set up the TIMER3 to keep kicking the ADC.   We use TIMER3 because
@@ -459,11 +460,11 @@ static void setup_adc(void)
 	// down to 8 KHz sample rate and going slower doesn't help; even more
 	// amazingly it doesn't sound that bad at all even though the scope trace
 	// is utter crud.)
-	PR3 = 100;		//  100 = prescale to 400 KHz
+	PR3             = 100;	//  100 = prescale to 400 KHz
 	T3CONbits.TSIDL = 0;	// keep timing in idle
-	IFS0bits.T3IF = 0;	// Clear T3 interrupt
-	IEC0bits.T3IE = 0;	// Disable T3 interrupt
-	T3CONbits.TON = 1;	// start the timer
+	IFS0bits.T3IF   = 0;	// Clear T3 interrupt
+	IEC0bits.T3IE   = 0;	// Disable T3 interrupt
+	T3CONbits.TON   = 1;	// start the timer
 	
 	// zero the ADC inputs in preparation for those that aren't updated
 	int i; 
