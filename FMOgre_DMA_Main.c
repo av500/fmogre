@@ -157,11 +157,8 @@ _FOSCSEL(FNOSC_PRIPLL & IESO_ON)
 // FICD
 #pragma config ICS = PGD2	// Comm Channel Select (Communicate on PGC2/EMUC2 and PGD2/EMUD2)
 #pragma config JTAGEN = OFF	// JTAG Port Enable (JTAG is Disabled)
+
 //     Now for our actual application specific stuff
-//      Testing variables
-volatile unsigned long iz;
-volatile unsigned long zig;
-volatile unsigned long zurg;
 
 #define LFOSWITCH PORTAbits.RA8
 #define RESOLUTIONSWITCH PORTBbits.RB4
@@ -238,77 +235,14 @@ volatile unsigned adc_chan;
 __attribute__ ((far)) unsigned int pbuf[PBUF_LEN];
 volatile unsigned pbindex = 0;
 
-//static short adc_inverted [8] = {1,1,1,1,0,0,0,0};
-//static short adc_sequence [16] = {0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
-
 //   Pins RB5, RB6, and RB7 are the LED port.
 //   Pin  RB8 is SYNC OUT, pin RB9 is SYNC IN.
 #define SYNC_IN (PORTAbits.RA9)	///TIMO edit  RB9->RA9
 //     The wavetable for sine waves are in wavetable.h
 #include "wavetable.h"
 
-//   DANGER DANGER DANGER:  This interrupt service routine is NOT USED
-//    ANY MORE.   Don't change it and expect it to do anything.  
-//     Why?  Because we now use TIMER3 to kick the ADC into a sample/convert
-//      cycle, and then use the DMA channel to continuously move the results
-//       into the "cvdata" buffer, which is in the DMA space.
-//        Got it?   Good.   
-#define SAMPLER_ADC 1
-#ifdef ADC1_trigger_interrupt
-void __attribute__ ((__interrupt__, __auto_psv__)) _ADC1Interrupt(void)
-{
-	// TESTPOINT1 = 1;    //  telltale "In AD Conversion"
-	//     Set up the ADC for the next sample
-	//                              //   Small race condition here - we
-	//                              // grab the ADC data and kick the ADC
-	adc_chan = which_adc;
-	adc_data = ADC1BUF0;
-	which_adc++;
-	if (which_adc > ADC_LAST)
-		which_adc = ADC_FIRST;
-	AD1CHS0bits.CH0SA = which_adc;	//  channel A positive input is input which_adc
-	AD1CON1bits.SAMP = 1;	//  start the sampling time for the ADC
-	AD1CON1bits.DONE = 0;	//  clear DONE status
-	IFS0bits.AD1IF = 0;	//   clear the interupt
-
-
-	if (adc_chan == SAMPLER_ADC) {
-		//   Note we store this in 12 bit (0-4096) mode; when we do our
-		//   windowing multiply we get it out to 16 bits
-		//pbuf[pbindex] = pbindex;
-		pbuf[pbindex] = ((unsigned long) 4096) - adc_data;
-		//pbindex++;
-		if (PORTBbits.RB9 == 0) {
-			pbindex++;
-		};		// is SYNC / FREEZE on or off?
-		if (pbindex >= PBUF_LEN)
-			pbindex = 0;
-	}
-	if (adc_inverted[adc_chan])
-		cvdata[adc_chan] = (((unsigned long) 4096) - adc_data);
-	else
-		cvdata[adc_chan] = adc_data;
-
-	//   Kick the A/D converter into conversion; interrupt when done.
-	AD1CON1bits.SAMP = 0;	//  kick the ADC into conversion
-	//   From this instant forward, we have about half a microsecond to do everything
-	//   else before the DAC finishes and we have to service this interrupt again.
-
-
-	//    The following is for seeing just how often this interrupt gets triggered.
-	//    iz++;
-	//    PORTBbits.RB6 = 0x1 & iz;
-	//    PORTBbits.RB6 = ! (PORTBbits.RB6);
-	// TESTPOINT1 = 0;   // telltale
-
-}
-#endif
-
 void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1LInterrupt(void)
 {
-	//IFS4bits.DAC1LIF = 0;             //   clear the interupt
-	//IFS4bits.DAC1RIF = 1;             //   fire the right channel interrupt
-	//DAC1LDAT = sine_table [0x0000FFF & ( curbasephase >> 20)];
 }
 
 void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
@@ -411,7 +345,6 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 			cvpm_errpredmult = cvpm_errpredmult + ((cvpm - old_cvpm) > 0 ? +1 : -1); 
 		if (cvpm_predicted > cvpm - DEADBAND)
 			cvpm_errpredmult = cvpm_errpredmult + ((cvpm - old_cvpm) > 0 ? -1 : +1);
-		//cvpm_errpredmult = 2048 - cvfmknob;
 		cvpm_dv = ((((long) cvpm) - ((long) old_cvpm)) * cvpm_errpredmult) / 256; older_cvpm = old_cvpm; old_cvpm = (long) cvpm; cvpm_predicted = (long) cvpm;
 	} else {
 		cvpm_predicted = cvpm_predicted + cvpm_dv;
@@ -421,20 +354,10 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	if (cvpm != old_cvpm) {
 		older_cvpm = old_cvpm; cvpm_predicted = older_cvpm; old_cvpm = cvpm;
 	} else {
-		//cvpm_predicted = (cvpm_predicted + cvpm_predicted + cvpm_predicted + old_cvpm) >> 2;
 		cvpm_predicted = (cvpm_predicted + old_cvpm) >> 1;	// use this for 26.4 KHz max freq 
-		//cvpm_predicted = (cvpm_predicted + old_cvpm + old_cvpm + old_cvpm) >> 2;
 	}
 
-	curphasemod = (((long) 2047 - cvpm_predicted) * cvpmknob) >> 10;
-	//curphasemod = ((((long)2047 - cvpm) * cvpmknob) >> 10);
-	//curphasemod = (( (long)2047 - cvpm) * cvpmknob) >> 12;
-	//    curphasemod = (( (long)2047 - cvpm) * cvpmknob) + 256;
-	//    curphasemod =  (curphasemod + (curphasemod << 3) 
-	//            + ((((long)2047 - cvpm) * cvpmknob))) >> 12;
-	//curresolution = (cvpmknob) ;  //  goes from lo (0) to 4096 (hi)
-	//curresolution = ((long)4095 - cvpm);    // this expr goes from 0 at -5V to 4095 at +5V
-	//curresolution = ((cvpmknob) * ((long)4095 - cvpm)) >> 12;  // works jack goes +-5 
+	curphasemod   = (((long) 2047 - cvpm_predicted) * cvpmknob) >> 10;
 	curresolution = ((cvpmknob) * ((long) 4095 - cvpm)) >> 12;	// works jack goes +-5 
 #endif
 	final_phase_fm_fb_pm = 0x00000FFF & (
@@ -443,7 +366,7 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	//   All done - stuff the DAC output registers.
 	//   WAS::  DAC1RDAT = sine_table [0x00000FFF & ((curbasephase >> 20) + 2048)];
 	DAC1RDAT = sine_table[0x00000FFF & final_phase_fm_feedback];
-	//DAC1LDAT = sine_table [0X00000fff & final_phase_fm_fb_pm];
+
 	//   CAUTION: FEATURE CREEP AHEAD!
 	//    Next section calculates the DAC1L output.  This can be
 	//    from the sine table or the incoming sample, and then
@@ -531,8 +454,6 @@ int main(int argc, char **argv) {
 	CLKDIVbits.PLLPOST = 0;	 // N1 = 2
 				 // 4MHz xtal + 0/80/0 yields ~41 MHz inst speed (measured)
 
-//	OSCTUN=0;                           // Tune FRC oscillator, if FRC is used
-	
 	// Disable Watch Dog Timer
 	RCONbits.SWDTEN = 0;
 	
@@ -546,9 +467,7 @@ int main(int argc, char **argv) {
 					//  use 6 to get 83333 hz DAC output rate (measured @ 40 MHz inst)
 	ACLKCONbits.ASRCSEL = 0;	//    use primary clock as source (but doesn't matter)
 	
-	long int quantum; zig = 0; iz = 0;
-	//  0x1 = ~ 1/15 Hz (1 cycle per 15 seconds)
-	quantum = 0x2400;	//  0x24000 = ~ 10 KHz; 0x35000 =~ 15 KHz
+	long int iz = 0;
 	
 	//   Set up which pins are digital in and out
 	TRISA = 0x0;		//   Inputs on RA0-1 (ADC 0 and 1)
@@ -708,19 +627,10 @@ int main(int argc, char **argv) {
 			cvdata[i] = 0;
 	}
 
-	 //   Zero the buffer index for starters.
-	 pbindex = 0; cvpm_errpredmult = 0;
-/*   Not used any more because we do DMA now   
-    AD1CON1bits.ADON = 1;      //  turn on the AD converter itself.
-    which_adc = ADC_FIRST;  //  start at the first ADC
-    AD1CON1bits.DONE = 0;      //  clear DONE bit.
-    AD1CON1bits.SAMP = 1;      //  Kick the ADC to start a conversion
-    delay(1);
-    AD1CON1bits.SAMP = 0;      //  Kick the ADC to start a conversion
-*/
-	//   ***   DAC INTERRUPT SET UP STUFF
-	//IEC4bits.DAC1LIE = 1;      //  enable the left channel DAC FIFO interrupt
-	//IPC19bits.DAC1LIP = 1;
+	// Zero the buffer index for starters.
+	pbindex = 0; cvpm_errpredmult = 0;
+
+	// DAC INTERRUPT SET UP STUFF
 	IEC4bits.DAC1RIE  = 1;	//  enable the right channel DAC FIFO interrupt
 	IPC19bits.DAC1RIP = 5;	//  set the FIFO interrupt priority (7 is max)
 	
@@ -734,8 +644,6 @@ int main(int argc, char **argv) {
 	//     curpitchval, curpitchincr, and curphasemod.
 	//
 	while (1) {	// Loop Endlessly - Execution is interrupt driven
-		//PORTBbits.RB5 = 1;   // DEBUG
-		//PORTBbits.RB6 = 0;   // DEBUG
 //#define HEARTBEAT_CPU
 #ifdef HEARTBEAT_CPU
 		iz++; PORTBbits.RB5 = 0x1 & (iz >> 17);	// at >>17, and 25 instructions counting loop
@@ -774,7 +682,7 @@ int main(int argc, char **argv) {
 #define BASELINE_CURFREQMOD
 #ifdef BASELINE_CURFREQMOD
 		curfreqmod = cvfmknob * (((long) 2047) - cvfm) << 6;
-		//curfreqmod = 0;
+
 		//    Output RB6 high if we have negative frequency.  Note because
 		//    of capacitance issues, we ALWAYS have RB6 on, but rather
 		//    just turn on and off the tristate (TRISbits) for RB6
@@ -785,7 +693,7 @@ int main(int argc, char **argv) {
 		curphasemod = ((((long) 2047 - cvpm) * cvpmknob) >> 10); curaltphasemod = (((long) 2047 - cvpm) * cvpmknob) + 256;
 #endif
 		curaltphasemod = (((long) 2047 - cvpm) * cvpmknob) + 256;
-		//+ ((curphasemod ) / 2);
+		
 		//   Output RB7 driven high if we have negative phase.   Note that
 		//   because of capacitance issues, we can't just output the bit; we
 		//   have to change the tristate (TRISbits) to hi-Z the output.
@@ -803,38 +711,10 @@ int main(int argc, char **argv) {
 		} else {
 			oldhardsync = 0;
 		}
-		//   And output hard sync out on RB8.
-		//  this used to happen (and cound again happen) at interrupt time.
-		//
-		//PORTBbits.RB8 =  final_phase_fm_feedback < 0x00000800;
 #endif
 #define BASELINE_CURFBGAIN
 #ifdef BASELINE_CURFBGAIN
 		curfbgain = ((4095 - cvfb) * cvfbknob) >> 12;
 #endif
-		//
-		//PORTBbits.RB5 = ! (PORTBbits.RB5);     // <<- 16 instructions counting the loop branch
-		// NB: Q106 osc square wave is 5-10 uS, fall time 30 uS
-		// Ramp/Sawtooth fast edge time 5 uS (lots of ringing),
-		//curbasephase+=16;
-		//DAC1DFLT =  DAC1RDAT = DAC1LDAT = 0xFFFF & curbasephase;
-//
-//        DAC1DFLT = sine_table [0x0000FFF & ( curbasephase >> 20)];
-//        DAC1LDAT = sine_table [0x0000FFF & ( curbasephase >> 20)];
-//        DAC1RDAT = sine_table [0x0000FFF & ( curbasephase >> 20)];
-		//DAC1RDAT = cvpitch << 4;
-		//DAC1LDAT = 0xFFFF &(zig >> 4);
-		//DAC1LDAT = curbasephase >> 16;
-		//     Test: do we get less jitter if we only fill when empty?
-		//     Alternative test: check on LFULL (and RFULL)
-		//if (! DAC1STATbits.LFULL)
-		//    DAC1LDAT = sine_table [0x0000FFF & ( curbasephase >> 20)];
-		//if (! DAC1STATbits.LFULL)
-		//if (DAC1STATbits.LEMPTY)
-		//    DAC1LDAT = curbasephase >> 16;
-		//if (zig < 0x2FFF) zag = quantum;
-		//if (zig > 0xDFFF) zag = -quantum;
-		//zig+=cvpitch << 3;
-		//if (zig > 0xFFFFF) zig = zig - 0xFFFFF;
 	}
 }
