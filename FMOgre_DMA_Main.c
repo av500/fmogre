@@ -605,16 +605,16 @@ int main(int argc, char **argv)
 	// RB8 and RB9 hard sync in and hard sync out, and the internals:
 	// curpitchval, curpitchincr, and curphasemod.
 	while (1) {	
-		
+	
 //#define HEARTBEAT_CPU
 #ifdef HEARTBEAT_CPU
-		iz++; PORTBbits.RB5 = 0x1 & (iz >> 17);	// at >>17, and 25 instructions counting loop
-		// each flash = ~3 MIP of slack
+		static long int tick = 0;
+		PORTBbits.RB5 = 0x1 & (tick++ >> 17);	// at >>17, and 25 instructions counting loop
+							// each flash = ~3 MIP of slack
 #endif
 
 #define HEARTBEAT_WAVEPHASE
 #ifdef HEARTBEAT_WAVEPHASE
-		iz++;
 		// Turns out that if you just toggle a bit fast the LED doesn't
 		// respond AT ALL (RC issues - the 220 ohm ballast resistance and the LED's
 		// capacitance form an RC filter and the output voltage never gets high
