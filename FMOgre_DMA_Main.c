@@ -287,9 +287,8 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #ifdef INTERRUPT_CURPHASEMOD
 	curphasemod = (((cvpm - 2048) * cvpmknob) >> 12);
 #endif
-
-	// slightly experimental version.   FM + Feedback on one, FM+PM+FB on other
-	final_phase_fm_feedback = 0x00000FFF & (
+	// FM + Feedback on one, FM + PM + FB on other
+	unsigned long final_phase_fm_feedback = 0x00000FFF & (
 				(curbasephase >> 20)	// native base phase
 							// plus operator feedback - FB jack is also sample in
 				+(((sinevalue - 32767) * (((long)(SAMPLESWITCH ? 4096 : (4095 - cvfb)) * cvfbknob) >> 12)) >> 12));
@@ -318,9 +317,8 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	}
 
 	curphasemod   = (((long) 2047 - cvpm_predicted) * cvpmknob) >> 10;
-	curresolution = ((cvpmknob) * ((long) 4095 - cvpm)) >> 12;	// works jack goes +-5 
 #endif
-	final_phase_fm_fb_pm = 0x00000FFF & (
+	unsigned long final_phase_fm_fb_pm = 0x00000FFF & (
 			// native base phase
 			final_phase_fm_feedback + (RESOLUTIONSWITCH ? 0 : curphasemod));
 	
@@ -334,10 +332,13 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	unsigned int phase = 0xfff & (final_phase_fm_fb_pm + 2048);
 	
 	// dist is the distance between read and write point, range is 0-2048
-	unsigned int dist1 = (abs(final_phase_fm_fb_pm - pbindex)); dist1 = (dist1) > 256 ? 16 : (dist1 >> 4);
-	unsigned int dist2 = 16 - dist1; dac1la = SAMPLESWITCH ? pbuf[final_phase_fm_fb_pm] * dist1	// was enabled
-								+ pbuf[phase] * dist2			//  was enabled 
-								: sine_table[0X00000fff & (final_phase_fm_fb_pm)]; 
+	unsigned int dist1 = (abs(final_phase_fm_fb_pm - sample_index)); dist1 = (dist1) > 256 ? 16 : (dist1 >> 4);
+	unsigned int dist2 = 16 - dist1; 
+
+	long dac1la, dac1lb = 0;
+
+	dac1la = SAMPLESWITCH ? sample_buf[final_phase_fm_fb_pm] * dist1 + sample_buf[phase] * dist2
+			      : sine_table[0X00000fff & (final_phase_fm_fb_pm)]; 
 	 
 	if (RESOLUTIONSWITCH) {
 		// DANGER DANGER DANGER!!!  Use muldiv decimation only with DAC dividers 
@@ -621,8 +622,11 @@ int main(int argc, char **argv)
 		// use exp_table to get exp freq resp, or if RA8 (aka FLOSWITCH) is turned off
 		// then we're in LFO mode and we use the value rightshifted 12 bits (very low
 		// frequency).
-		curpitchincr = LFOSWITCH ? ((exp_table[(curpitchval < 0) ? 0 : (curpitchval > 0x00000FFF) ? 0x00000FFF : curpitchval]) >> 12)
-				: (exp_table[(curpitchval < 0) ? 0 : (curpitchval > 0x00000FFF) ? 0x00000FFF : curpitchval]);
+		long exp_val = exp_table[(curpitchval < 0) ? 0 : (curpitchval > 0x00000FFF) ? 0x00000FFF : curpitchval];
+		if( LFOSWITCH ) {
+			exp_val >>= 12;
+		}
+		curpitchincr = exp_val;
 #endif
 		// We can calculate linear frequency modulation here.
 #define BASELINE_CURFREQMOD
@@ -637,9 +641,10 @@ int main(int argc, char **argv)
 
 //#define BASELINE_CURPHASEMOD    
 #ifdef BASELINE_CURPHASEMOD
-		curphasemod = ((((long) 2047 - cvpm) * cvpmknob) >> 10); curaltphasemod = (((long) 2047 - cvpm) * cvpmknob) + 256;
+		curphasemod    = ((((long) 2047 - cvpm) * cvpmknob) >> 10); 
+		curaltphasemod =  (((long) 2047 - cvpm) * cvpmknob) + 256;
 #endif
-		curaltphasemod = (((long) 2047 - cvpm) * cvpmknob) + 256;
+		curaltphasemod =  (((long) 2047 - cvpm) * cvpmknob) + 256;
 		
 		// Output RB7 driven high if we have negative phase.   Note that
 		// because of capacitance issues, we can't just output the bit; we
