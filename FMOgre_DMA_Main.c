@@ -444,14 +444,11 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
 #endif
 
     //   New method- keep current, old, and older.   
-    if (cvpm != old_cvpm)
-    {
+    if (cvpm != old_cvpm) {
         older_cvpm = old_cvpm;
         cvpm_predicted = older_cvpm;
         old_cvpm = cvpm;
-    }    
-    else
-    { 
+    } else { 
         //cvpm_predicted = (cvpm_predicted + cvpm_predicted + cvpm_predicted + old_cvpm) >> 2;
         cvpm_predicted = (cvpm_predicted + old_cvpm) >> 1;   // use this for 26.4 KHz max freq 
         //cvpm_predicted = (cvpm_predicted + old_cvpm + old_cvpm + old_cvpm) >> 2;
@@ -540,10 +537,11 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
     //    due to the 256x oversampling versus the direct path here for SYNC OUT
     //    Note that Hard Sync IN changes if we're in granular/sampling mode to
     //    become _FREEZE_INPUT_SAMPLES_
-    if (SAMPLESWITCH)
-    {  PORTBbits.RB8 = pbindex < 0x000000FF; }
-    else
-    {  PORTBbits.RB8 =  final_phase_fm_feedback > 0x00000800; }
+    if (SAMPLESWITCH) {
+        PORTBbits.RB8 = pbindex < 0x000000FF; 
+    } else {
+        PORTBbits.RB8 =  final_phase_fm_feedback > 0x00000800; 
+    }
     
     
     TESTPOINT2 = 0;
@@ -551,10 +549,12 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
 
 }
 
-void delay (int cycles){
+void delay (int cycles)
+{
     int i;
     for (i = 0; i < cycles; i++);
 }
+
 int noop ()
 {
     return (1);
