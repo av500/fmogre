@@ -497,12 +497,12 @@ void __attribute__((__interrupt__,__auto_psv__)) _DAC1RInterrupt(void)
             pbuf [final_phase_fm_fb_pm] * dist1  // was enabled
             + pbuf [fpffpp] * dist2  //  was enabled 
             : sine_table [0X00000fff & (final_phase_fm_fb_pm)];
-    //if (RESOLUTIONSWITCH)
-    {
+    if (RESOLUTIONSWITCH) {
         //   DANGER DANGER DANGER!!!  Use muldiv decimation only with DAC dividers 
         //   of 6 or greater!   Otherwise, the interrupt cannot keep up with the
         //   demand of the DAC oversampling hardware and you'll underrun which makes
         //   lots of negative-going pulses.  Not A Good Thing!
+        dac1lb = dac1la;
 #define MULDIV_DECIMATION
 #ifdef MULDIV_DECIMATION
         //   Next step:  decimation / resolution reduction - uses integer divide
