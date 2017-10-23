@@ -565,18 +565,16 @@ int noop ()
  */
 int main(int argc, char** argv) {
 
-       // Configure Oscillator to operate the device at 40MIPS
-    // Fosc= Fin*M/(N1*N2), Fcy=Fosc/2
-    // Fosc= 7.37M*43/(2*2)=79.22Mhz for ~40MIPS input clock
+    // Configure Oscillator to operate the device at ~40MHz
+    // Fosc = Fin  *   M      / (N1 * N2), Fcy = Fosc / 2
+    // Fosc = 4.0M * (80 + 2) / ( 2 * 2 ) = 82.00Mhz
 
-    //   Current crystal is 4 MHz so the below actually clocks at 41 MIPS
-    //  Yeah overclocking!!!   Set PLLFBD to 79 for an accurate 40 MIPS.
-    //   which is 80 MHz on the PLL clock output
-      CLKDIVbits.PLLPRE=0;		// N2=2
-      PLLFBD = 80 ;			// Set this to 79 for an accurate 80 mips
-      CLKDIVbits.PLLPOST=0;		// N1=2
-                                        //  4MHz xtal + 0/80/0 yields ~40 MHz inst speed (measured)
-//    OSCTUN=0;				// Tune FRC oscillator, if FRC is used
+    // Current crystal is 4 MHz so the below actually clocks at 82MHz/41 MIPS
+    CLKDIVbits.PLLPRE = 0;		// N2 = 2
+    PLLFBD = 80 ;			// M  = 80 + 2 = 82, set this to 78 for an accurate 80 MIPS
+    CLKDIVbits.PLLPOST = 0;		// N1 = 2
+                                        // 4MHz xtal + 0/80/0 yields ~41 MHz inst speed (measured)
+//  OSCTUN=0;				// Tune FRC oscillator, if FRC is used
 
     // Disable Watch Dog Timer
       RCONbits.SWDTEN=0;
@@ -657,7 +655,7 @@ int main(int argc, char** argv) {
     //    dogs to hear it, and just fine at 6, which allows MULDIV-decimation.
     
     DAC1CONbits.DACFDIV = 6;  // (was 3, then 6, then 8) divide Fosc to drive 
-                              //  interpolator. 3 = 83.333KHz @40MIPS
+                              //  interpolator. 3 = 80.078KHz @ 82MHz F_VCO
     DAC1STAT = 0xFFFF;        //  everything on
     DAC1STATbits.LITYPE = 1;  // 0 means interrupt on Left LIFO not full
     DAC1STATbits.RITYPE = 1;  // 0 means interrupt on Right LIFO not full
