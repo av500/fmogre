@@ -174,11 +174,6 @@ static volatile long curfbgain;
 
 // AD converter stuff
 static volatile char oldhardsync;
-// DMA buffer (note that the pointer passed to the DMA engine is
-// NOT the same as the CPU address of the DMA buffer; the two have
-// overlapping but not zero-originned address spaces.)
-//int adc_dmabuf[8] __attribute__((space(dma)));
-static unsigned int dma_eng_addr;
 
 //  to make stuffing the ADC values easier, we use some DEFINEs:
 static volatile unsigned int cvdata[16] __attribute__ ((space(dma), aligned(256)));
