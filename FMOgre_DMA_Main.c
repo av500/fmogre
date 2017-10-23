@@ -3,16 +3,11 @@
  * Author: wsy
  *
  * Created on August 16, 2013, 7:10 AM
- * Updated April 18 2015, 23:52 PM
- * Yet more mangling July 26, 2015
- * yet more mangling September 5 2015
- * Yet more mangling November 2015
  * 
  *  This file is Copyright 2013-2015 William S. Yerazunis,
  *  It is licensed CC-BY-SA-NC
  *
- *  (creative commons, attribute source, share alike, no commercial
- *   use without other license)
+ *  (creative commons, attribute source, share alike, no commercial use without other license)
  */
 
 /* edited by Timo Rozendal, all these edits are mentioned with TIMO EDIT in the comments
@@ -59,44 +54,7 @@
  *          23-26 = RP, RN, LP, and LN analog out = see above
  *          pin 27: AVss
  *          pin 28: AVdd
- *
 */
-
-//    Data structure(s)
-//
-//    fmphase, outphase: 32 bit unsigned ints.   Both are used in the
-//    positive-only range, and are abused as follows:
-//    2^31 to 2^19 - used for output (12 bits into the LUT, same as the DX7 had).
-//    2^18 to 2^0 - fractional phase, not used but carried over which maintains
-//    phase coherency
-//
-//      By using this format, it is unnecessary to rectify phase wrapping in
-//      either directions - overflow and underflow can be IGNORED.The latter also
-//      makes this do thru-zero FM work correctly.
-
-//    Pseudocode / Design (May be out of date):
-//    - initialize on-board RC clock (and crystal clock and dividers)
-//    - initialize ADC (unsigned 12 bit)
-//    - initialize DAC (unsigned 16 bit 48 KHz)
-//    - initialize shared locations
-//    - set up ADC interrupt service
-//    - set up DAC interrupt service
-//    - while (1)
-//      - outphase = fmphase + (phasemodval * phasemodindex)
-//      - clip outphase into 0 to outphasemax-1
-//      - read RB8 and RB9 (to choose LUT)
-//      - prepend RB9:RB8 to get lutindex
-//      -
-//    * ADC interrupt service:
-//      - read the ADC register
-//      - put result in the appropriate ADCoutput buffer
-//      - kick off another conversion (AN0, 1, 2, 3, 4, 5, 0, 1, 2...)
-//      - fmphaseincr = (freqmodval * freqmodindex) + (pitchval * pitchscale)  ***OWNED TRANSITION
-//      - fmphase = fmphase + fmphaseincr
-//      - clip fmphase to 0 to fmphasemax-1
-//      - return
-//
-
 
 #include <stdio.h>
 #include <p33FJ128GP804.h>
@@ -197,6 +155,14 @@ static volatile unsigned sample_index = 0;
 
 // The wavetable for sine waves are in wavetable.h
 #include "wavetable.h"
+
+//    oscillator phase: 32 bit unsigned int, used as follows:
+//      2^31 to 2^19 - used for output (12 bits into the LUT, same as the DX7 had).
+//      2^18 to 2^ 0 - fractional phase, not used but carried over which maintains phase coherency
+//
+//    By using this format, it is unnecessary to rectify phase wrapping in
+//    either directions - overflow and underflow can be IGNORED. The latter also
+//    makes this do thru-zero FM work correctly.
 
 void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1LInterrupt(void)
 {
@@ -493,12 +459,7 @@ static void setup_adc(void)
 	// down to 8 KHz sample rate and going slower doesn't help; even more
 	// amazingly it doesn't sound that bad at all even though the scope trace
 	// is utter crud.)
-	//PR3 = 4999;		// 4999 = prescale to 125 uSec (8 KHz)
-	//PR3 = 250;		//  250 = prescale to 160 KHz
-	//PR3 = 200;		//  200 = prescale to 200 KHz
-	//PR3 = 150;
 	PR3 = 100;		//  100 = prescale to 400 KHz
-	//PR3 = 80;		//   80 = prescale to 500 KHz  (maximum rated)
 	T3CONbits.TSIDL = 0;	// keep timing in idle
 	IFS0bits.T3IF = 0;	// Clear T3 interrupt
 	IEC0bits.T3IE = 0;	// Disable T3 interrupt
