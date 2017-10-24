@@ -60,6 +60,7 @@
 #include <p33FJ128GP804.h>
 #include "dsp.h"
 #include <stdint.h>
+#include <string.h>
 
 // DSPIC33FJ64GP802 Configuration Bit Settings
 
@@ -467,7 +468,7 @@ static void setup_adc(void)
 	T3CONbits.TON   = 1;	// start the timer
 	
 	// zero the ADC inputs in preparation for those that aren't updated
-	memset(cvdata, 0, sizeof(cvdata));
+	memset((void*)cvdata, 0, sizeof(cvdata));
 }
 
 static void setup_clocks(void)
