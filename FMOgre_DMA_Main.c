@@ -210,10 +210,12 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #endif
 	curbasephase = curbasephase + curfreqmod;
 
+	unsigned long truncated_phase = (curbasephase >> 20) & 0x00000FFF;
+
 //#define RAW_PLUS_LINEAR_FM_CHECK
 #ifdef RAW_PLUS_LINEAR_FM_CHECK
-	DAC1RDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; 
-	DAC1LDAT = sine_table[0x00000FFF & (curbasephase >> 20)]; 
+	DAC1RDAT = sine_table[truncated_phase];
+	DAC1LDAT = sine_table[truncated_phase];
 	return;
 #endif
 	// sinevalue is the output of the basephase->sine conversion BUT it's
@@ -221,8 +223,8 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	// feedback, and used to generate the final (actual) FM phase.
 	// Because it's synchronous with curbasephase, we *do* calculate it at
 	// interrupt time (fortunately, it's fast)
-	unsigned long sinevalue = SAMPLESWITCH ? sample_buf[0x00000FFF & (curbasephase >> 20)]
-	                                       : sine_table[0x00000FFF & (curbasephase >> 20)];
+	unsigned long sinevalue = SAMPLESWITCH ? sample_buf[truncated_phase]
+	                                       : sine_table[truncated_phase];
 	
 	// used to calculate curphasemod here, but now do it in mainline (again, to
 	// minimize time spent in the interrupt and thus not slow down the ADC stream)
@@ -231,10 +233,13 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	curphasemod = (((cvpm - 2048) * cvpmknob) >> 12);
 #endif
 	// FM + Feedback on one, FM + PM + FB on other
-	unsigned long final_phase_fm_feedback = 0x00000FFF & (
-				(curbasephase >> 20)	// native base phase
-							// plus operator feedback - FB jack is also sample in
-				+(((sinevalue - 32767) * (((long)(SAMPLESWITCH ? 4096 : (4095 - cvfb)) * cvfbknob) >> 12)) >> 12));
+
+	// HW change: normal FB input to 3V3 and use absolute value if a bipolar CV is patched:
+	long _cvfb = abs(2048 - cvfb) * 2;
+	long fbgain = ((long)(SAMPLESWITCH ? 4096 : _cvfb) * cvfbknob) >> 12;
+
+	long fbphase = (((sinevalue - 32767) * fbgain) >> 12);
+	unsigned long final_phase_fm_feedback = (truncated_phase + fbphase) & 0x00000FFF;
 
 	// calculate the phase modulation.   Can do here or baseline.
 #define INTERRUPT_CURPHASEMOD
@@ -256,10 +261,9 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 	// all done - stuff the DAC output registers.
 	DAC1RDAT = sine_table[0x00000FFF & final_phase_fm_feedback];
 
-	// CAUTION: FEATURE CREEP AHEAD!
 	// Next section calculates the DAC1L output.  This can be
 	// from the sine table or the incoming sample, and then
-	// phase modulated, or resolution reduced.
+	// resolution reduced.
 	unsigned int phase = 0xfff & (final_phase_fm_fb_pm + 2048);
 	
 	// dist is the distance between read and write point, range is 0-2048
