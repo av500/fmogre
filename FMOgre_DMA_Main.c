@@ -597,7 +597,7 @@ int main(int argc, char **argv)
 		}
 #endif
 
-#define BASELINE_CURFBGAIN
+//#define BASELINE_CURFBGAIN
 #ifdef BASELINE_CURFBGAIN
 		curfbgain = ((4095 - cvfb) * cvfbknob) >> 12;
 #endif
