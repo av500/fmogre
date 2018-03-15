@@ -234,10 +234,7 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #endif
 	// FM + Feedback on one, FM + PM + FB on other
 
-	// HW change: normal FB input to 3V3 and use absolute value if a bipolar CV is patched:
-	long _cvfb = abs(2048 - cvfb) * 2;
-	long fbgain = ((long)(SAMPLESWITCH ? 4096 : _cvfb) * cvfbknob) >> 12;
-
+	long fbgain  = ((long)(SAMPLESWITCH ? 4096 : (4095 - cvfb)) * cvfbknob) >> 12;
 	long fbphase = (((sinevalue - 32767) * fbgain) >> 12);
 	unsigned long final_phase_fm_feedback = (truncated_phase + fbphase) & 0x00000FFF;
 
