@@ -234,7 +234,10 @@ void __attribute__ ((__interrupt__, __auto_psv__)) _DAC1RInterrupt(void)
 #endif
 	// FM + Feedback on one, FM + PM + FB on other
 
-	long fbgain  = ((long)(SAMPLESWITCH ? 4096 : (4095 - cvfb)) * cvfbknob) >> 12;
+	// the cvfbknob ADC reading never reaches an actual 0 value, 
+	// so treat everything below a certain threshold as 0
+	long _cvfbknob = cvfbknob < 100 ? 0 : cvfbknob;
+	long fbgain  = ((long)(SAMPLESWITCH ? 4096 : (4095 - cvfb)) * _cvfbknob) >> 12;
 	long fbphase = (((sinevalue - 32767) * fbgain) >> 12);
 	unsigned long final_phase_fm_feedback = (truncated_phase + fbphase) & 0x00000FFF;
 
